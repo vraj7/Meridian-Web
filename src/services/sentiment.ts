@@ -29,7 +29,8 @@ export async function fetchFearGreed(demoMode = false): Promise<{ value: number;
   return fetchWithFallback({
     cacheKey: "fear-greed",
     cacheTtl: CACHE_TTL.fearGreed,
-    demoFallback: () => ({ value: 50, label: "Neutral" }),
+    errorFallback: () => ({ value: 50, label: "Neutral" }),
+    allowErrorFallback: true,
     providers: [
       {
         name: "alternative.me",

@@ -28,7 +28,12 @@ export function CoinDetailClient({ coinId }: { coinId: string }) {
 
   const { data: markets } = useMarkets();
   const coin = markets?.find((m) => m.id === coinId || m.symbol === symbol);
-  const { data: prediction, isLoading } = usePrediction(symbol, coinId, timeframe, market);
+  const {
+    data: prediction,
+    isPending,
+    isFetching,
+    error,
+  } = usePrediction(symbol, coinId, timeframe, market);
   const { has, add, remove } = useWatchlistStore();
   const inWatchlist = has(symbol);
 
@@ -81,7 +86,7 @@ export function CoinDetailClient({ coinId }: { coinId: string }) {
         </Button>
       </header>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {TIMEFRAMES.map((tf) => (
           <Button key={tf} size="sm" variant={timeframe === tf ? "default" : "outline"} onClick={() => setTimeframe(tf)}>
             {tf}
@@ -89,17 +94,22 @@ export function CoinDetailClient({ coinId }: { coinId: string }) {
         ))}
         <Button size="sm" variant={market === "spot" ? "default" : "outline"} onClick={() => setMarket("spot")}>Spot</Button>
         <Button size="sm" variant={market === "futures" ? "default" : "outline"} onClick={() => setMarket("futures")}>Futures</Button>
+        {isFetching && !isPending && (
+          <span className="text-xs text-muted-foreground ml-2 animate-pulse">
+            Updating…
+          </span>
+        )}
       </div>
 
-      {isLoading ? (
+      {isPending ? (
         <Skeleton className="h-[400px]" />
       ) : prediction ? (
-        <>
+        <div className={isFetching ? "opacity-70 transition-opacity" : "transition-opacity"}>
           <PriceChart candles={prediction.candles} signal={prediction.signal} />
           {livePriceSignal && (
             <SignalCard signal={livePriceSignal} chartCandles={prediction.candles} />
           )}
-          <section className="grid md:grid-cols-2 gap-4">
+          <section className="grid md:grid-cols-2 gap-4 mt-4">
             <Card>
               <CardHeader><CardTitle className="text-sm">Indicators</CardTitle></CardHeader>
               <CardContent className="text-sm font-mono space-y-1">
@@ -120,7 +130,20 @@ export function CoinDetailClient({ coinId }: { coinId: string }) {
               <CardContent className="text-sm text-muted-foreground">{prediction.commentary}</CardContent>
             </Card>
           </section>
-        </>
+        </div>
+      ) : error ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm text-destructive">Data unavailable</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>Couldn&apos;t load {timeframe} candles for {symbol}.</p>
+            <p className="font-mono text-xs break-words">
+              {error instanceof Error ? error.message : String(error)}
+            </p>
+            <p>Try another timeframe, switch quote pair, or check upstream provider status.</p>
+          </CardContent>
+        </Card>
       ) : null}
     </section>
   );

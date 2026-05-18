@@ -26,7 +26,12 @@ export default function IndiaStockPage({ params }: { params: Promise<{ symbol: s
 
   const { data: stocks } = useIndiaMarkets();
   const stock = stocks?.find((s) => s.symbol === symbol);
-  const { data: prediction, isLoading } = useIndiaPrediction(
+  const {
+    data: prediction,
+    isPending,
+    isFetching,
+    error,
+  } = useIndiaPrediction(
     symbol,
     stock?.id ?? symbol.toLowerCase(),
     timeframe,
@@ -50,18 +55,23 @@ export default function IndiaStockPage({ params }: { params: Promise<{ symbol: s
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {TIMEFRAMES.map((tf) => (
           <Button key={tf} size="sm" variant={timeframe === tf ? "default" : "outline"} onClick={() => setTimeframe(tf)}>
             {tf}
           </Button>
         ))}
+        {isFetching && !isPending && (
+          <span className="text-xs text-muted-foreground ml-2 animate-pulse">
+            Updating…
+          </span>
+        )}
       </div>
 
-      {isLoading ? (
+      {isPending ? (
         <Skeleton className="h-[400px]" />
       ) : prediction ? (
-        <>
+        <div className={isFetching ? "opacity-70 transition-opacity space-y-4" : "transition-opacity space-y-4"}>
           <PriceChart candles={prediction.candles} signal={prediction.signal} />
           {prediction.signal && <SignalCard signal={prediction.signal} />}
           {prediction.optionSignals.map((s) => (
@@ -85,7 +95,19 @@ export default function IndiaStockPage({ params }: { params: Promise<{ symbol: s
               <CardContent className="text-sm text-muted-foreground">{prediction.commentary}</CardContent>
             </Card>
           </div>
-        </>
+        </div>
+      ) : error ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm text-destructive">Data unavailable</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>Couldn&apos;t load {timeframe} candles for {symbol}.</p>
+            <p className="font-mono text-xs break-words">
+              {error instanceof Error ? error.message : String(error)}
+            </p>
+          </CardContent>
+        </Card>
       ) : null}
     </section>
   );

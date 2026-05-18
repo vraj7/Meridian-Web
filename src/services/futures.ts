@@ -69,17 +69,7 @@ export async function fetchFuturesMetrics(
     fetchWithFallback({
     cacheKey: `futures:${symbol}:${QUOTE_CURRENCY}`,
     cacheTtl: CACHE_TTL.futures,
-    demoFallback: () => getDemoFutures(symbol),
     providers: [
-      {
-        name: "binance-futures",
-        fetch: async () => {
-          const { data } = await fetchWithFuturesPairFallback(symbol, (pair) =>
-            fetchBinanceFuturesForPair(symbol, pair)
-          );
-          return data;
-        },
-      },
       {
         name: "bybit-futures",
         fetch: async () => {
@@ -109,6 +99,15 @@ export async function fetchFuturesMetrics(
               volatilityAlert: Math.abs(fundingRate) > 0.015,
             };
           });
+          return data;
+        },
+      },
+      {
+        name: "binance-futures",
+        fetch: async () => {
+          const { data } = await fetchWithFuturesPairFallback(symbol, (pair) =>
+            fetchBinanceFuturesForPair(symbol, pair)
+          );
           return data;
         },
       },

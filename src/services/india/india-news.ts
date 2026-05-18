@@ -199,7 +199,8 @@ export async function fetchIndiaNews(demoMode = false): Promise<IndiaNewsSentime
   return fetchWithFallback({
     cacheKey: "india-news",
     cacheTtl: CACHE_TTL.news,
-    demoFallback: () => aggregateNewsSentiment(DEMO_NEWS),
+    errorFallback: () => aggregateNewsSentiment(DEMO_NEWS),
+    allowErrorFallback: true,
     providers: [
       {
         name: "reddit-india",

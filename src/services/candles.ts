@@ -53,25 +53,7 @@ export async function fetchCandles(
     fetchWithFallback({
     cacheKey,
     cacheTtl: CACHE_TTL.candles,
-    demoFallback: () => getDemoCandles(symbol),
     providers: [
-      {
-        name: "binance",
-        fetch: async () => {
-          const { data } = await fetchWithUsdPairFallback(
-            symbol,
-            async (pair) => {
-              const klines = await axiosGet<BinanceKline[]>(
-                `${API_PROVIDERS.binance.baseUrl}/klines?symbol=${pair}&interval=${interval}&limit=${limit}`
-              );
-              if (!klines?.length) return null;
-              return mapBinanceKlines(klines);
-            },
-            getBinanceSpotPairCandidates(symbol, quotePair)
-          );
-          return data;
-        },
-      },
       {
         name: "bybit",
         fetch: async () => {
@@ -119,6 +101,23 @@ export async function fetchCandles(
             close: k.close,
             volume: k.volumeto,
           }));
+        },
+      },
+      {
+        name: "binance",
+        fetch: async () => {
+          const { data } = await fetchWithUsdPairFallback(
+            symbol,
+            async (pair) => {
+              const klines = await axiosGet<BinanceKline[]>(
+                `${API_PROVIDERS.binance.baseUrl}/klines?symbol=${pair}&interval=${interval}&limit=${limit}`
+              );
+              if (!klines?.length) return null;
+              return mapBinanceKlines(klines);
+            },
+            getBinanceSpotPairCandidates(symbol, quotePair)
+          );
+          return data;
         },
       },
     ],

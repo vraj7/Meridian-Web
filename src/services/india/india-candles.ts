@@ -26,7 +26,6 @@ export async function fetchIndiaCandles(
   return fetchWithFallback({
     cacheKey,
     cacheTtl: CACHE_TTL.indiaCandles,
-    demoFallback: () => getDemoIndiaCandles(symbol),
     providers: [
       {
         name: "yahoo-india",

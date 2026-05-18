@@ -2,11 +2,18 @@
 const ALLOWED_HOSTS = new Set([
   "api.binance.com",
   "fapi.binance.com",
+  "data-api.binance.vision",
+  "api-gcp.binance.com",
+  "api1.binance.com",
+  "api2.binance.com",
+  "api3.binance.com",
+  "api4.binance.com",
   "query1.finance.yahoo.com",
   "query2.finance.yahoo.com",
   "www.nseindia.com",
   "nseindia.com",
   "api.bybit.com",
+  "api.bytick.com",
   "news.google.com",
   "stooq.pl",
   "www.reddit.com",
@@ -18,6 +25,24 @@ const ALLOWED_HOSTS = new Set([
   "api.coinlore.net",
   "api.alternative.me",
 ]);
+
+/** Mirror hosts to try when an upstream returns a region-block status. */
+const HOST_MIRRORS: Record<string, string[]> = {
+  "api.binance.com": [
+    "api.binance.com",
+    "data-api.binance.vision",
+    "api-gcp.binance.com",
+    "api1.binance.com",
+    "api2.binance.com",
+    "api3.binance.com",
+    "api4.binance.com",
+  ],
+  "api.bybit.com": ["api.bybit.com", "api.bytick.com"],
+};
+
+export function getProxyMirrorHosts(hostname: string): string[] {
+  return HOST_MIRRORS[hostname] ?? [hostname];
+}
 
 export function isProxyUrlAllowed(url: URL): boolean {
   if (url.protocol !== "https:" && url.protocol !== "http:") return false;

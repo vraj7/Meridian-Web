@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { runIndiaPrediction } from "@/engines/india-prediction-engine";
 import { fetchIndiaCandles } from "@/services/india/india-candles";
 import { fetchNseOptionChain } from "@/services/india/nse-india";
@@ -49,5 +49,6 @@ export function useIndiaPrediction(
     },
     enabled: !!symbol,
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
 }

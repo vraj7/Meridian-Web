@@ -22,7 +22,6 @@ export async function fetchIndiaStocks(demoMode = false): Promise<IndianStock[]>
   return fetchWithFallback({
     cacheKey: "india-stocks",
     cacheTtl: CACHE_TTL.indiaMarkets,
-    demoFallback: () => DEMO_INDIA_STOCKS,
     providers: [
       {
         name: "yahoo-finance-india",

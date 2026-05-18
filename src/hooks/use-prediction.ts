@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { CANDLE_LIMIT_HTF, CANDLE_LIMIT_PRIMARY } from "@/config/api";
 import { resolveCryptoSignalFilters } from "@/config/crypto-signal-filters";
 import { HIGHER_TIMEFRAME } from "@/engines/crypto-timing-engine";
@@ -74,5 +74,6 @@ export function usePrediction(
     enabled: !!symbol && !!coinId,
     staleTime: 90_000,
     refetchInterval: 120_000,
+    placeholderData: keepPreviousData,
   });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createChart,
   CandlestickSeries,
@@ -25,15 +25,37 @@ function priceLineTitle(label: string, price: number, precision: number): string
   return `${label} ${formatChartPrice(price, precision)}`;
 }
 
+/**
+ * lightweight-charts requires strictly-ascending, unique `time` values; any
+ * duplicate or out-of-order entry (common with 1m/5m feeds that include the
+ * currently-forming candle) makes `setData()` throw and leaves the container
+ * empty. Normalize defensively before plotting.
+ */
+function normalizeCandles(candles: Candle[]): Candle[] {
+  const byTime = new Map<number, Candle>();
+  for (const c of candles) {
+    if (!Number.isFinite(c.time) || !Number.isFinite(c.close)) continue;
+    byTime.set(c.time, c);
+  }
+  return Array.from(byTime.values()).sort((a, b) => a.time - b.time);
+}
+
 export function PriceChart({ candles, signal, height = 400 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || candles.length === 0) return;
+    if (!containerRef.current) return;
 
-    const { precision, minMove } = getChartPriceFormatFromCandles(candles);
+    const safeCandles = normalizeCandles(candles);
+    if (safeCandles.length === 0) {
+      setRenderError("No candle data available for this timeframe.");
+      return;
+    }
+
+    const { precision, minMove } = getChartPriceFormatFromCandles(safeCandles);
 
     const chart = createChart(containerRef.current, {
       height,
@@ -68,14 +90,22 @@ export function PriceChart({ candles, signal, height = 400 }: PriceChartProps) {
       },
     });
 
-    const data: CandlestickData[] = candles.map((c) => ({
+    const data: CandlestickData[] = safeCandles.map((c) => ({
       time: c.time as CandlestickData["time"],
       open: c.open,
       high: c.high,
       low: c.low,
       close: c.close,
     }));
-    series.setData(data);
+    try {
+      series.setData(data);
+      setRenderError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setRenderError(`Chart render failed: ${msg}`);
+      chart.remove();
+      return;
+    }
 
     if (signal) {
       series.createPriceLine({
@@ -143,5 +173,14 @@ export function PriceChart({ candles, signal, height = 400 }: PriceChartProps) {
     };
   }, [candles, signal, height]);
 
-  return <div ref={containerRef} className="w-full rounded-lg overflow-hidden" />;
+  return (
+    <div className="relative w-full rounded-lg overflow-hidden bg-card/40" style={{ minHeight: height }}>
+      <div ref={containerRef} className="w-full" style={{ minHeight: height }} />
+      {renderError && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground p-4 text-center">
+          {renderError}
+        </div>
+      )}
+    </div>
+  );
 }

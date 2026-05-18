@@ -73,13 +73,28 @@ export interface FetchWithFallbackOptions<T> {
     name: string;
     fetch: () => Promise<T>;
   }>;
-  demoFallback?: () => T;
+  /**
+   * Value returned when ALL providers fail. Only used if `allowErrorFallback`
+   * is true. Intended for non-price data where a neutral/empty default is OK
+   * (e.g. Fear & Greed, news). NEVER use for prices/candles/futures — those
+   * should surface the error so the UI can show a loading/error state instead
+   * of silently displaying stale demo numbers.
+   */
+  errorFallback?: () => T;
+  /** Opt in to using `errorFallback` on all-providers-failed (default false). */
+  allowErrorFallback?: boolean;
 }
 
 export async function fetchWithFallback<T>(
   options: FetchWithFallbackOptions<T>
 ): Promise<T> {
-  const { cacheKey, cacheTtl = 60_000, providers, demoFallback } = options;
+  const {
+    cacheKey,
+    cacheTtl = 60_000,
+    providers,
+    errorFallback,
+    allowErrorFallback = false,
+  } = options;
 
   if (cacheKey) {
     const cached = await getCached<T>(cacheKey);
@@ -115,7 +130,7 @@ export async function fetchWithFallback<T>(
     }
   }
 
-  if (demoFallback) return demoFallback();
+  if (allowErrorFallback && errorFallback) return errorFallback();
   throw new Error(`All providers failed: ${errors.join("; ")}`);
 }
 

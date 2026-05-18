@@ -87,7 +87,6 @@ export async function fetchTop50Markets(demoMode = false): Promise<CoinMarket[]>
   return fetchWithFallback({
     cacheKey: "delta-futures-markets",
     cacheTtl: CACHE_TTL.markets,
-    demoFallback: () => DEMO_MARKETS,
     providers: [
       {
         name: "coingecko",
@@ -165,7 +164,8 @@ export async function fetchBtcDominance(demoMode = false): Promise<number> {
   return fetchWithFallback({
     cacheKey: "btc-dominance",
     cacheTtl: CACHE_TTL.dominance,
-    demoFallback: () => 54.2,
+    errorFallback: () => 54.2,
+    allowErrorFallback: true,
     providers: [
       {
         name: "coingecko",
