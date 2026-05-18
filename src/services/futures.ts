@@ -69,6 +69,14 @@ export async function fetchFuturesMetrics(
     fetchWithFallback({
     cacheKey: `futures:${symbol}:${QUOTE_CURRENCY}`,
     cacheTtl: CACHE_TTL.futures,
+    /**
+     * Funding rate / open interest are non-critical inputs — if Bybit and
+     * Binance futures both fail (e.g. Vercel US 451 + Bybit hiccup), return
+     * neutral metrics so the chart, candles, and signal engine keep working
+     * without futures-specific squeeze/funding adjustments.
+     */
+    errorFallback: () => NEUTRAL_FUTURES(symbol),
+    allowErrorFallback: true,
     providers: [
       {
         name: "bybit-futures",

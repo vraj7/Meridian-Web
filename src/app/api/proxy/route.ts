@@ -7,8 +7,12 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Uncomment on Vercel to deploy in a region Binance does not geo-block (e.g. Mumbai / Singapore / Frankfurt):
-// export const preferredRegion = ["bom1", "sin1", "fra1"];
+/**
+ * Vercel default region (iad1, US East) is geo-blocked by Binance with HTTP 451.
+ * Pin to regions where Binance is reachable: Mumbai → Singapore → Frankfurt.
+ * Vercel routes to the first region listed that's available for your plan.
+ */
+export const preferredRegion = ["bom1", "sin1", "fra1"];
 
 const BLOCKED_STATUSES = new Set([403, 418, 429, 451]);
 const PER_HOST_TIMEOUT_MS = 12_000;

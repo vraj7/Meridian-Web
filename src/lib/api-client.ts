@@ -3,6 +3,22 @@ import { fetchJsonWithCors } from "./cors-fetch";
 import { getCached, setCached } from "./cache";
 import { sleep } from "./utils";
 
+/**
+ * HTTP statuses that indicate a permanent host-level block (geo-restriction,
+ * IP ban, hard rate-limit). Retrying these in quick succession is pointless
+ * and just produces console spam — break out of the retry loop instead.
+ */
+const PERMANENT_BLOCK_STATUSES = new Set([403, 418, 429, 451]);
+
+function isPermanentlyBlocked(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { response?: { status?: number; headers?: Record<string, string> } };
+  const status = e.response?.status;
+  if (status && PERMANENT_BLOCK_STATUSES.has(status)) return true;
+  // /api/proxy explicitly tags geo-blocked responses with this header.
+  return e.response?.headers?.["x-proxy-geo-blocked"] === "1";
+}
+
 function shouldUseSameOriginProxy(url: string): boolean {
   if (typeof window === "undefined") return false;
   if (!/^https?:\/\//i.test(url)) return false;
@@ -124,6 +140,12 @@ export async function fetchWithFallback<T>(
         markFailure(provider.name);
         const msg = err instanceof Error ? err.message : String(err);
         errors.push(`${provider.name}: ${msg}`);
+        if (isPermanentlyBlocked(err)) {
+          // Geo-block / forbidden / rate-limited at the host level — retrying
+          // hits the same wall and just floods the console. Skip to next
+          // provider immediately and keep this one in cooldown.
+          break;
+        }
         attempt++;
         await sleep(500 * 2 ** attempt);
       }

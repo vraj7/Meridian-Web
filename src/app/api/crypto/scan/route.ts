@@ -5,6 +5,8 @@ import type { Timeframe } from "@/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+/** Match /api/proxy region pinning so upstream calls aren't blocked by Binance/Bybit geo-rules. */
+export const preferredRegion = ["bom1", "sin1", "fra1"];
 
 const VALID_TF = new Set<Timeframe>(["1m", "5m", "15m", "1h", "4h", "1D", "1W"]);
 const MAX_COINS = CRYPTO_SCAN_BATCH_SIZE;
