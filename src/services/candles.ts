@@ -55,6 +55,51 @@ export async function fetchCandles(
     cacheTtl: CACHE_TTL.candles,
     providers: [
       {
+        /**
+         * CryptoCompare first: works from cloud IPs (no Cloudflare bot wall,
+         * no geo-block on US datacenters). Endpoint chosen by timeframe so
+         * we don't aggregate minute-bars into daily candles.
+         */
+        name: "cryptocompare",
+        fetch: async () => {
+          const endpointMap: Record<
+            string,
+            { path: "histominute" | "histohour" | "histoday"; aggregate: number }
+          > = {
+            "1m": { path: "histominute", aggregate: 1 },
+            "5m": { path: "histominute", aggregate: 5 },
+            "15m": { path: "histominute", aggregate: 15 },
+            "1h": { path: "histohour", aggregate: 1 },
+            "4h": { path: "histohour", aggregate: 4 },
+            "1D": { path: "histoday", aggregate: 1 },
+            "1W": { path: "histoday", aggregate: 7 },
+          };
+          const { path, aggregate } = endpointMap[timeframe];
+          const res = await axiosGet<{
+            Response: string;
+            Message?: string;
+            Data: { Data: Array<{ time: number; open: number; high: number; low: number; close: number; volumeto: number }> };
+          }>(
+            `${API_PROVIDERS.cryptocompare.baseUrl}/v2/${path}?fsym=${symbol}&tsym=${quotePair}&limit=${limit}&aggregate=${aggregate}`
+          );
+          if (res.Response === "Error") {
+            throw new Error(`cryptocompare: ${res.Message ?? "unknown"}`);
+          }
+          const candles = res.Data.Data.filter((k) => k.close > 0).map((k) => ({
+            time: k.time,
+            open: k.open,
+            high: k.high,
+            low: k.low,
+            close: k.close,
+            volume: k.volumeto,
+          }));
+          if (candles.length < 30) {
+            throw new Error(`cryptocompare: only ${candles.length} candles`);
+          }
+          return candles;
+        },
+      },
+      {
         name: "bybit",
         fetch: async () => {
           const intervalMap: Record<string, string> = {
@@ -80,27 +125,6 @@ export async function fetchCandles(
             getBinanceSpotPairCandidates(symbol, quotePair)
           );
           return data;
-        },
-      },
-      {
-        name: "cryptocompare",
-        fetch: async () => {
-          const aggregateMap: Record<string, number> = {
-            "1m": 1, "5m": 5, "15m": 15, "1h": 60, "4h": 240, "1D": 1440, "1W": 10080,
-          };
-          const res = await axiosGet<{
-            Data: { Data: Array<{ time: number; open: number; high: number; low: number; close: number; volumeto: number }> };
-          }>(
-            `${API_PROVIDERS.cryptocompare.baseUrl}/v2/histominute?fsym=${symbol}&tsym=${quotePair}&limit=${limit}&aggregate=${aggregateMap[timeframe]}`
-          );
-          return res.Data.Data.map((k) => ({
-            time: k.time,
-            open: k.open,
-            high: k.high,
-            low: k.low,
-            close: k.close,
-            volume: k.volumeto,
-          }));
         },
       },
       {

@@ -81,5 +81,45 @@ export function buildProxyHeaders(target: URL): HeadersInit {
     return { Accept: "application/json" };
   }
 
+  if (
+    target.hostname.includes("bybit.com") ||
+    target.hostname.includes("bytick.com")
+  ) {
+    // Bybit's Cloudflare layer rejects unadorned cloud-IP requests with 403.
+    // A full browser-like header set (UA + Accept-Language + Origin + Referer)
+    // is enough to look like a real client without any auth.
+    return {
+      "User-Agent": ua,
+      Accept: "application/json, text/plain, */*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      Origin: "https://www.bybit.com",
+      Referer: "https://www.bybit.com/",
+      "sec-ch-ua":
+        '"Chromium";v="120", "Google Chrome";v="120", "Not?A_Brand";v="24"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-site",
+    };
+  }
+
+  if (target.hostname.includes("cryptocompare.com")) {
+    return {
+      "User-Agent": ua,
+      Accept: "application/json",
+      "Accept-Language": "en-US,en;q=0.9",
+    };
+  }
+
+  if (target.hostname.includes("coingecko.com")) {
+    return {
+      "User-Agent": ua,
+      Accept: "application/json",
+      "Accept-Language": "en-US,en;q=0.9",
+    };
+  }
+
   return { "User-Agent": ua, Accept: "*/*" };
 }
