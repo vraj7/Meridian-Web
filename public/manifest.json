@@ -1,18 +1,8 @@
 {
-  "name": "Meridian Signals",
+  "name": "Meridian",
   "short_name": "Meridian",
-  "description": "Minimal market intelligence for crypto and India equities",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
-  "orientation": "portrait-primary",
-  "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    }
-  ]
+  "background_color": "#fafafa",
+  "theme_color": "#fafafa"
 }
