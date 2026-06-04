@@ -7,7 +7,7 @@ import {
   MarketSettingsFields,
   RefreshSettingsCard,
 } from "@/components/settings/market-settings-fields";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { NotificationSettingsCard } from "@/components/settings/notification-settings-card";
 import { useCryptoSettingsStore } from "@/stores/crypto-settings-store";
 import { usePortfolioStore } from "@/stores/portfolio-store";
 import { useActiveSignalsStore } from "@/stores/active-signals-store";
@@ -15,17 +15,9 @@ import { useSignalHistoryStore } from "@/stores/signal-history-store";
 
 export default function CryptoSettingsPage() {
   const settings = useCryptoSettingsStore();
-  const setNotifications = useAppSettingsStore((s) => s.setNotifications);
   const resetPortfolio = usePortfolioStore((s) => s.reset);
   const clearHistory = useSignalHistoryStore((s) => s.clear);
   const clearActiveSignals = useActiveSignalsStore((s) => s.clear);
-
-  const requestNotifications = async () => {
-    if ("Notification" in window) {
-      const perm = await Notification.requestPermission();
-      setNotifications(perm === "granted");
-    }
-  };
 
   return (
     <section className="space-y-6 max-w-xl">
@@ -87,16 +79,7 @@ export default function CryptoSettingsPage() {
         onRefreshInterval={settings.setRefreshInterval}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Notifications</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={requestNotifications}>
-            Enable browser notifications
-          </Button>
-        </CardContent>
-      </Card>
+      <NotificationSettingsCard />
 
       <Card>
         <CardHeader>

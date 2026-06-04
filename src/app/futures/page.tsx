@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { useMarkets } from "@/hooks/use-markets";
 import { CoinGradesTable } from "@/components/signals/coin-grades-table";
 import { LoadMoreCryptoButton } from "@/components/signals/load-more-crypto-button";
-import { usePaginatedCryptoScan } from "@/hooks/use-paginated-crypto-scan";
+import { useFuturesScanWithAlerts } from "@/hooks/use-futures-scan-alerts";
+import { NotificationSettingsCard } from "@/components/settings/notification-settings-card";
 import { fetchFuturesMetrics } from "@/services/futures";
 import { RelaxedCryptoToggle } from "@/components/signals/relaxed-crypto-toggle";
 import { CRYPTO_SCAN_BATCH_SIZE } from "@/config/crypto-scan";
@@ -21,7 +22,6 @@ import { formatCompact } from "@/lib/utils";
 
 export default function FuturesPage() {
   const demoMode = useCryptoSettingsStore((s) => s.demoMode);
-  const tf = useCryptoSettingsStore((s) => s.defaultTimeframe);
   const minConfidence = useCryptoSettingsStore((s) => s.minConfidence);
   const relaxed = useCryptoSettingsStore((s) => s.relaxedCryptoSignals);
   const { data: markets } = useMarkets();
@@ -37,7 +37,7 @@ export default function FuturesPage() {
     isFullScanActive,
     isLoading,
     isFetching,
-  } = usePaginatedCryptoScan(markets, "futures", tf, CRYPTO_SCAN_BATCH_SIZE);
+  } = useFuturesScanWithAlerts(markets);
 
   const nearMissCount =
     grades &&
@@ -78,6 +78,8 @@ export default function FuturesPage() {
         </div>
         <RelaxedCryptoToggle className="sm:max-w-md" />
       </div>
+
+      <NotificationSettingsCard variant="futures" />
 
       <MarketTrendCard />
       <TradingWorkflowCard />

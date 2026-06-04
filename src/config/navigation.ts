@@ -3,6 +3,7 @@ import {
   BarChart3,
   Brain,
   Building2,
+  Crosshair,
   Flame,
   Landmark,
   Layers,
@@ -36,6 +37,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/", label: "Overview", icon: LayoutDashboard },
       { href: "/spot", label: "Spot", icon: TrendingUp },
       { href: "/futures", label: "Futures", icon: Zap },
+      { href: "/futures/intraday", label: "Intraday", icon: Crosshair },
       { href: "/insights", label: "Insights", icon: Brain },
       { href: "/heatmap", label: "Heatmap", icon: BarChart3 },
       { href: "/trending", label: "Trending", icon: Flame },
@@ -72,6 +74,9 @@ export function isNavItemActive(pathname: string, href: string): boolean {
   }
   if (href === "/india/settings") {
     return pathname === "/india/settings";
+  }
+  if (href === "/futures") {
+    return pathname === "/futures";
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
