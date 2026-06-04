@@ -41,7 +41,11 @@ export function NotificationSettingsCard({
   const setFuturesAlertIntervalMs = useAppSettingsStore((s) => s.setFuturesAlertIntervalMs);
   const setIntradayAlertIntervalMs = useAppSettingsStore((s) => s.setIntradayAlertIntervalMs);
 
-  const [permission, setPermission] = useState(getNotificationPermission());
+  const [mounted, setMounted] = useState(false);
+  const [supported, setSupported] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
+    "default"
+  );
 
   const showFutures = variant === "futures" || variant === "all";
   const showIntraday = variant === "intraday" || variant === "all";
@@ -54,8 +58,11 @@ export function NotificationSettingsCard({
         : "Configure Futures and Intraday alerts separately. Alerts fire only when price is in the entry zone.";
 
   useEffect(() => {
-    setPermission(getNotificationPermission());
-    if (getNotificationPermission() === "granted") {
+    setMounted(true);
+    setSupported(isNotificationSupported());
+    const perm = getNotificationPermission();
+    setPermission(perm);
+    if (perm === "granted") {
       setNotifications(true);
     }
   }, [setNotifications]);
@@ -66,18 +73,15 @@ export function NotificationSettingsCard({
     setNotifications(perm === "granted");
   }, [setNotifications]);
 
-  if (!isNotificationSupported()) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Trade alerts</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Browser notifications are not supported in this environment.
-        </CardContent>
-      </Card>
-    );
-  }
+  const statusLabel = !mounted
+    ? "Checking…"
+    : !supported
+      ? "Not supported"
+      : permission === "granted"
+        ? "Enabled"
+        : permission === "denied"
+          ? "Blocked — allow in browser site settings"
+          : "Not enabled";
 
   return (
     <Card>
@@ -89,16 +93,14 @@ export function NotificationSettingsCard({
 
         <p className="text-xs">
           Status:{" "}
-          <span className="font-medium text-foreground">
-            {permission === "granted"
-              ? "Enabled"
-              : permission === "denied"
-                ? "Blocked — allow in browser site settings"
-                : "Not enabled"}
-          </span>
+          <span className="font-medium text-foreground">{statusLabel}</span>
         </p>
 
-        {permission !== "granted" ? (
+        {!mounted ? null : !supported ? (
+          <p className="text-muted-foreground">
+            Browser notifications are not supported in this environment.
+          </p>
+        ) : permission !== "granted" ? (
           <Button variant="default" onClick={enable}>
             Enable notifications
           </Button>
