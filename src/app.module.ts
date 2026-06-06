@@ -7,15 +7,12 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { redisStore } from 'cache-manager-redis-yet';
 import * as path from 'path';
 import appConfig from './config/app.config';
-import { DataModule } from './modules/data/data.module';
-import { IndicatorsModule } from './modules/indicators/indicators.module';
-import { SignalModule } from './modules/signal/signal.module';
-import { BacktestModule } from './modules/backtest/backtest.module';
 import { ApiModule } from './modules/api/api.module';
 import { SignalEntity, BacktestResultEntity, OiHistoryEntity } from './entities';
 import { LoggerModule } from './common/logger/logger.module';
 import * as fs from 'fs';
 
+/** Full app — SQLite, cron, WebSockets (local / Render). */
 @Module({
   imports: [
     LoggerModule,
@@ -38,7 +35,6 @@ import * as fs from 'fs';
           await store.client.ping();
           return { store, ttl };
         } catch {
-          // Redis unavailable — use in-memory cache (no error spam)
           return { ttl };
         }
       },
@@ -57,13 +53,9 @@ import * as fs from 'fs';
         };
       },
     }),
-    DataModule,
-    IndicatorsModule,
-    SignalModule,
-    BacktestModule,
-    ApiModule,
+    ApiModule.register(),
     ServeStaticModule.forRoot({
-      rootPath: path.join(__dirname, '..', 'public'),
+      rootPath: path.join(__dirname, 'public'),
       exclude: ['/health', '/signals/(.*)', '/market/(.*)', '/backtest/(.*)', '/settings/(.*)', '/api/docs/(.*)'],
     }),
   ],

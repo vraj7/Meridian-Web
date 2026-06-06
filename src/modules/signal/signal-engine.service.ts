@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -24,8 +24,8 @@ export class SignalEngineService {
     private readonly marketContext: MarketContextService,
     private readonly config: ConfigService,
     private readonly logger: AppLogger,
-    @InjectRepository(SignalEntity)
-    private readonly signalRepo: Repository<SignalEntity>,
+    @Optional() @InjectRepository(SignalEntity)
+    private readonly signalRepo: Repository<SignalEntity> | null,
   ) {}
 
   setBacktestDiscount(symbol: string, discountPct: number): void {
@@ -155,7 +155,7 @@ export class SignalEngineService {
   }
 
   async persistSignal(signal: TradingSignalDto): Promise<void> {
-    if (signal.direction === SignalDirection.NEUTRAL) return;
+    if (!this.signalRepo || signal.direction === SignalDirection.NEUTRAL) return;
     await this.signalRepo.save({
       symbol: signal.symbol,
       direction: signal.direction,

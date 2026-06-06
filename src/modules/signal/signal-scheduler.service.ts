@@ -7,6 +7,7 @@ import { SignalEngineService } from './signal-engine.service';
 import { SignalsGateway } from './signals.gateway';
 import { ScanSettingsService } from '../data/scan-settings.service';
 import { AppLogger } from '../../common/logger/app.logger';
+import { isVercel } from '../../common/runtime';
 import { SignalDirection, type TradingSignalDto } from '../../common/types';
 
 export interface ScanStatusDto {
@@ -45,6 +46,8 @@ export class SignalSchedulerService implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
+    // Vercel has no cron and cold starts must stay fast — scans are manual via /signals/refresh.
+    if (isVercel) return;
     setTimeout(() => this.triggerScan(), 5000);
   }
 

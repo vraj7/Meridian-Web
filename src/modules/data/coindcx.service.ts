@@ -6,6 +6,7 @@ import { Inject } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
 import { firstValueFrom } from 'rxjs';
 import { AppLogger } from '../../common/logger/app.logger';
+import { isVercel } from '../../common/runtime';
 import { RateLimiterService } from './rate-limiter.service';
 import { ScanSettingsService } from './scan-settings.service';
 import type { CvdSnapshot, Kline } from '../../common/types';
@@ -46,6 +47,8 @@ export class CoinDcxService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    // Defer network I/O on serverless so /health responds before cold-start timeout.
+    if (isVercel) return;
     try {
       this.topSymbols = await this.refreshTopSymbols();
       this.logger.log(

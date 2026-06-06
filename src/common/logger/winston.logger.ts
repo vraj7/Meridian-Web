@@ -1,16 +1,5 @@
 import * as winston from 'winston';
-
-// CJS package — default import breaks at runtime with Nest/tsc
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const DailyRotateFile = require('winston-daily-rotate-file') as new (
-  options: {
-    dirname?: string;
-    filename?: string;
-    datePattern?: string;
-    maxFiles?: string | number;
-    level?: string;
-  },
-) => winston.transport;
+import { isVercel } from '../runtime';
 
 const logFormat = winston.format.combine(
   winston.format.timestamp(),
@@ -23,13 +12,23 @@ const logFormat = winston.format.combine(
 );
 
 export function createWinstonLogger() {
-  return winston.createLogger({
-    level: process.env.LOG_LEVEL ?? 'info',
-    format: logFormat,
-    transports: [
-      new winston.transports.Console({
-        format: winston.format.combine(winston.format.colorize(), logFormat),
-      }),
+  const transports: winston.transport[] = [
+    new winston.transports.Console({
+      format: winston.format.combine(winston.format.colorize(), logFormat),
+    }),
+  ];
+
+  // Vercel has a read-only filesystem — file logging will crash bootstrap.
+  if (!isVercel) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const DailyRotateFile = require('winston-daily-rotate-file') as new (options: {
+      dirname?: string;
+      filename?: string;
+      datePattern?: string;
+      maxFiles?: string | number;
+      level?: string;
+    }) => winston.transport;
+    transports.push(
       new DailyRotateFile({
         dirname: 'logs',
         filename: 'app-%DATE%.log',
@@ -44,7 +43,13 @@ export function createWinstonLogger() {
         maxFiles: '30d',
         level: 'error',
       }),
-    ],
+    );
+  }
+
+  return winston.createLogger({
+    level: process.env.LOG_LEVEL ?? 'info',
+    format: logFormat,
+    transports,
   });
 }
 

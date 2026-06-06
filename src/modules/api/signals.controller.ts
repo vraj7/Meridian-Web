@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Query, NotFoundException, Res } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Query, NotFoundException, Optional, Res, ServiceUnavailableException } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SignalSchedulerService } from '../signal/signal-scheduler.service';
@@ -15,7 +15,7 @@ import { MarketLiveService } from './market-live.service';
 export class SignalsController {
   constructor(
     private readonly scheduler: SignalSchedulerService,
-    private readonly backtest: BacktestService,
+    @Optional() private readonly backtest: BacktestService | null,
     private readonly scanSettings: ScanSettingsService,
     private readonly coindcx: CoinDcxService,
     private readonly chartAnalysis: ChartAnalysisService,
@@ -166,6 +166,9 @@ export class SignalsController {
   @ApiOperation({ summary: 'Run backtest for a pair over N days (default 180)' })
   @ApiQuery({ name: 'days', required: false, example: 180 })
   async runBacktest(@Param('pair') pair: string, @Query('days') days?: string) {
+    if (!this.backtest) {
+      throw new ServiceUnavailableException('Backtest is not available on serverless deployments');
+    }
     const d = days ? parseInt(days, 10) : 180;
     return this.backtest.runBacktest(pair, d);
   }

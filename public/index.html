@@ -344,7 +344,12 @@
           fetch('/signals/top100'),
           fetch('/settings/scan'),
         ]);
-        if (!healthRes.ok || !dataRes.ok) throw new Error('API request failed');
+        if (!healthRes.ok || !dataRes.ok) {
+          const parts = [];
+          if (!healthRes.ok) parts.push(`/health ${healthRes.status}`);
+          if (!dataRes.ok) parts.push(`/signals/top100 ${dataRes.status}`);
+          throw new Error(`API request failed (${parts.join(', ')})`);
+        }
         const health = await healthRes.json();
         const data = await dataRes.json();
         if (settingsRes.ok) {
