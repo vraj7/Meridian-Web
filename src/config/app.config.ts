@@ -3,7 +3,9 @@ import { registerAs } from '@nestjs/config';
 export default registerAs('app', () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  databasePath: process.env.DATABASE_PATH ?? './data/signals.db',
+  databasePath:
+    process.env.DATABASE_PATH ??
+    (process.env.VERCEL ? '/tmp/signals.db' : './data/signals.db'),
   signalCron: process.env.SIGNAL_CRON ?? '*/5 * * * *',
   coinglassApiKey: process.env.COINGLASS_API_KEY ?? '',
   cryptopanicApiKey: process.env.CRYPTOPANIC_API_KEY ?? '',

@@ -51,3 +51,33 @@ public/index.html       # Dashboard UI
 ```
 
 **Disclaimer:** Research and education only — not financial advice.
+
+## Deployment
+
+This project is **NestJS** (not Next.js). If Vercel shows *“No Next.js version detected”*, the project was created with the wrong framework preset.
+
+### Recommended: Render (full app)
+
+Cron scans, SQLite, SSE live charts, and WebSockets all work.
+
+1. Push to GitHub
+2. [Render](https://render.com) → **New** → **Blueprint** → select `render.yaml`
+3. Set optional env vars: `COINGLASS_API_KEY`, `CRYPTOPANIC_API_KEY`, `REDIS_URL`
+4. Deploy — health check: `/health`
+
+Or manually: **Web Service**, build `npm install && npm run build`, start `npm run start:prod`, health `/health`.
+
+### Vercel (limited serverless mode)
+
+`vercel.json` sets `"framework": null` so Vercel stops expecting Next.js.
+
+In the Vercel dashboard: **Settings → General → Framework Preset → Other**.
+
+| Works on Vercel | Does not |
+|-----------------|----------|
+| REST API, dashboard UI, coin pages | Scheduled scan cron |
+| | WebSocket `/ws/signals` |
+| | Long-lived SSE (may timeout) |
+| | Persistent SQLite (uses `/tmp` only) |
+
+For production signals with auto-scan, use **Render** or Railway/Fly instead of Vercel.

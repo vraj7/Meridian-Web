@@ -1,0 +1,29 @@
+# Recommended deployment for Meridian Signals (full cron + SQLite + live streams).
+# Connect repo at https://render.com → New → Blueprint → select this file.
+services:
+  - type: web
+    name: meridian-signals
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_PATH
+        value: /var/data/signals.db
+      - key: SCAN_PAIR_COUNT
+        value: 50
+      - key: COINGLASS_API_KEY
+        sync: false
+      - key: CRYPTOPANIC_API_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+    disk:
+      name: meridian-data
+      mountPath: /var/data
+      sizeGB: 1
