@@ -1,8 +1,0 @@
-{
-  "name": "Meridian",
-  "short_name": "Meridian",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#fafafa",
-  "theme_color": "#fafafa"
-}

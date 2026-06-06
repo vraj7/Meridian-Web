@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meridian Signals</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #09090b;
+      color: #fafafa;
+      line-height: 1.5;
+    }
+    .container { max-width: 80rem; margin: 0 auto; padding: 2rem 1rem; }
+    header { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; justify-content: space-between; margin-bottom: 1.5rem; }
+    h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.025em; }
+    .subtitle { margin: 0.25rem 0 0; font-size: 0.875rem; color: #a1a1aa; }
+    .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      border-radius: 9999px; border: 1px solid; padding: 0.25rem 0.625rem; font-size: 0.75rem;
+    }
+    .badge.online { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.1); color: #34d399; }
+    .badge.offline { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.1); color: #fbbf24; }
+    .dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; }
+    .dot.online { background: #34d399; }
+    .dot.offline { background: #fbbf24; }
+    .btn-primary {
+      border: none; border-radius: 0.5rem; background: #f4f4f5; color: #18181b;
+      padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 500; cursor: pointer;
+    }
+    .btn-primary:hover:not(:disabled) { background: #fff; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+    @media (min-width: 640px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+    .stat-card {
+      border-radius: 0.75rem; border: 1px solid #27272a; background: rgba(24,24,27,0.6); padding: 1rem;
+    }
+    .stat-label { margin: 0; font-size: 0.75rem; color: #71717a; }
+    .stat-value { margin: 0.25rem 0 0; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .last-run { font-size: 0.75rem; color: #71717a; margin-bottom: 1rem; }
+    .scan-status {
+      border-radius: 0.75rem; border: 1px solid #27272a; background: rgba(24,24,27,0.6);
+      padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.875rem;
+    }
+    .scan-status[hidden] { display: none !important; }
+    .progress-track { height: 6px; border-radius: 9999px; background: #27272a; margin-top: 0.5rem; overflow: hidden; }
+    .progress-bar { height: 100%; background: #34d399; border-radius: 9999px; transition: width 0.3s ease; width: 0%; }
+    .error {
+      border-radius: 0.75rem; border: 1px solid rgba(245,158,11,0.3);
+      background: rgba(245,158,11,0.1); padding: 0.75rem 1rem; font-size: 0.875rem; color: #fde68a; margin-bottom: 1rem;
+    }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .filters { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .filter-btn {
+      border-radius: 0.5rem; border: 1px solid #27272a; background: transparent;
+      padding: 0.375rem 0.75rem; font-size: 0.75rem; font-weight: 500; color: #71717a; cursor: pointer; text-transform: capitalize;
+    }
+    .filter-btn:hover { border-color: #3f3f46; color: #d4d4d8; }
+    .filter-btn.active { border-color: #52525b; background: #27272a; color: #f4f4f5; }
+    .search { width: 100%; max-width: 12rem; border-radius: 0.5rem; border: 1px solid #27272a;
+      background: #18181b; padding: 0.5rem 0.75rem; font-size: 0.875rem; color: #fafafa;
+    }
+    .scan-count {
+      border-radius: 0.5rem; border: 1px solid #27272a; background: #18181b;
+      padding: 0.5rem 0.75rem; font-size: 0.875rem; color: #fafafa; cursor: pointer;
+    }
+    .search::placeholder { color: #52525b; }
+    .table-wrap { overflow: hidden; border-radius: 0.75rem; border: 1px solid #27272a; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; min-width: 900px; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+    thead tr { border-bottom: 1px solid #27272a; background: rgba(24,24,27,0.8); }
+    th { padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; }
+    tbody tr { border-bottom: 1px solid rgba(39,39,42,0.8); }
+    tbody tr:hover { background: rgba(24,24,27,0.4); }
+    tbody tr.clickable { cursor: pointer; }
+    tbody tr.clickable:hover { background: rgba(39,39,42,0.6); }
+    .pair-link { color: #fafafa; font-weight: 500; text-decoration: underline; text-decoration-color: #3f3f46; text-underline-offset: 3px; }
+    tbody tr.clickable:hover .pair-link { text-decoration-color: #71717a; }
+    td { padding: 0.75rem 1rem; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; }
+    .sl { color: rgba(251,113,133,0.9); }
+    .tp1 { color: rgba(52,211,153,0.9); }
+    .tp2 { color: rgba(52,211,153,0.7); }
+    .muted { color: #71717a; }
+    .direction {
+      display: inline-flex; border-radius: 0.25rem; border: 1px solid; padding: 0.125rem 0.5rem;
+      font-size: 0.75rem; font-weight: 500;
+    }
+    .direction.LONG { background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.3); }
+    .direction.SHORT { background: rgba(244,63,94,0.15); color: #fb7185; border-color: rgba(244,63,94,0.3); }
+    .direction.NEUTRAL { background: rgba(113,113,122,0.15); color: #a1a1aa; border-color: rgba(113,113,122,0.3); }
+    .weak { margin-left: 0.5rem; font-size: 0.75rem; color: #f59e0b; }
+    .empty { padding: 6rem 1rem; text-align: center; font-size: 0.875rem; color: #71717a; }
+    footer { margin-top: 2rem; text-align: center; font-size: 0.75rem; color: #52525b; }
+    footer a { color: #a1a1aa; }
+    footer a:hover { color: #d4d4d8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Meridian Signals</h1>
+        <p class="subtitle">CoinDCX USDT futures · top pairs by volume · 5-minute ensemble engine</p>
+      </div>
+      <div class="header-actions">
+        <label class="muted" style="font-size:0.75rem;display:flex;align-items:center;gap:0.375rem">
+          Scan
+          <select id="scanCountSelect" class="scan-count" title="Number of pairs to scan (by 24h volume)">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="75">75</option>
+            <option value="100">100</option>
+            <option value="150">150</option>
+          </select>
+        </label>
+        <span id="statusBadge" class="badge offline">
+          <span id="statusDot" class="dot offline"></span>
+          <span id="statusText">API offline</span>
+        </span>
+        <button id="scanBtn" class="btn-primary" type="button" disabled>Scan 50</button>
+      </div>
+    </header>
+
+    <div class="stats">
+      <div class="stat-card"><p class="stat-label">Pairs scanned</p><p class="stat-value" id="statTotal">0</p></div>
+      <div class="stat-card"><p class="stat-label">Actionable ≥70%</p><p class="stat-value" id="statActionable">0</p></div>
+      <div class="stat-card"><p class="stat-label">Weak 50–69%</p><p class="stat-value" id="statWeak">0</p></div>
+      <div class="stat-card"><p class="stat-label">Neutral</p><p class="stat-value" id="statNeutral">0</p></div>
+    </div>
+
+    <p id="lastRun" class="last-run" hidden></p>
+    <div id="scanStatus" class="scan-status" hidden>
+      <div id="scanStatusText">Scanning…</div>
+      <div class="progress-track"><div id="scanProgressBar" class="progress-bar"></div></div>
+    </div>
+    <div id="errorBox" class="error" hidden></div>
+
+    <div class="toolbar">
+      <div class="filters" id="filters">
+        <button type="button" class="filter-btn active" data-filter="actionable">actionable</button>
+        <button type="button" class="filter-btn" data-filter="weak">weak</button>
+        <button type="button" class="filter-btn" data-filter="all">all</button>
+        <button type="button" class="filter-btn" data-filter="long">long</button>
+        <button type="button" class="filter-btn" data-filter="short">short</button>
+      </div>
+      <input id="searchInput" class="search" type="search" placeholder="Search symbol…" />
+    </div>
+
+    <div class="table-wrap">
+      <div id="tableContent" class="empty">Loading signals…</div>
+    </div>
+
+    <footer>
+      Research only — not financial advice. API docs at <a href="/api/docs">/api/docs</a>
+    </footer>
+  </div>
+
+  <script>
+    let signals = [];
+    let filter = 'actionable';
+    let search = '';
+    let backendOnline = false;
+    let refreshing = false;
+
+    let scanPairCount = 50;
+
+    function formatSymbol(sym) {
+      return sym.replace(/^B-/, '').replace(/_USDT$/, '');
+    }
+
+    function updateScanBtnLabel() {
+      const btn = document.getElementById('scanBtn');
+      if (!refreshing) btn.textContent = `Scan ${scanPairCount}`;
+    }
+
+    function formatPrice(n) {
+      if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      if (n >= 1) return n.toFixed(4);
+      return n.toFixed(6);
+    }
+
+    function setOnline(online) {
+      backendOnline = online;
+      const badge = document.getElementById('statusBadge');
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      badge.className = 'badge ' + (online ? 'online' : 'offline');
+      dot.className = 'dot ' + (online ? 'online' : 'offline');
+      text.textContent = online ? 'API online' : 'API offline';
+      document.getElementById('scanBtn').disabled = refreshing || !online;
+      updateScanBtnLabel();
+    }
+
+    let pollTimer = null;
+
+    function showScanStatus(text, pct) {
+      const box = document.getElementById('scanStatus');
+      const bar = document.getElementById('scanProgressBar');
+      document.getElementById('scanStatusText').textContent = text;
+      bar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+      box.hidden = false;
+    }
+
+    function hideScanStatus() {
+      document.getElementById('scanStatus').hidden = true;
+      document.getElementById('scanProgressBar').style.width = '0%';
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    async function pollScanStatus() {
+      try {
+        const res = await fetch('/signals/scan-status');
+        if (!res.ok) return;
+        const st = await res.json();
+        if (st.running || st.queued) {
+          const pct = st.total > 0 ? (st.progress / st.total) * 100 : 5;
+          const msg = st.message || (st.running ? 'Scanning…' : 'Queued…');
+          showScanStatus(msg, pct);
+          return true;
+        }
+        hideScanStatus();
+        return false;
+      } catch {
+        return false;
+      }
+    }
+
+    function startPolling() {
+      stopPolling();
+      pollTimer = setInterval(async () => {
+        const busy = await pollScanStatus();
+        if (!busy) {
+          stopPolling();
+          await load();
+          refreshing = false;
+          document.getElementById('scanBtn').textContent = `Scan ${scanPairCount}`;
+          document.getElementById('scanBtn').disabled = !backendOnline;
+        }
+      }, 1500);
+    }
+
+    function showError(msg) {
+      const box = document.getElementById('errorBox');
+      if (!msg) { box.hidden = true; box.textContent = ''; return; }
+      box.hidden = false;
+      box.textContent = msg;
+    }
+
+    function updateStats() {
+      document.getElementById('statTotal').textContent = signals.length;
+      document.getElementById('statActionable').textContent = signals.filter(s => s.direction !== 'NEUTRAL' && !s.weakSignal && s.confidence >= 70).length;
+      document.getElementById('statWeak').textContent = signals.filter(s => s.weakSignal || (s.direction !== 'NEUTRAL' && s.confidence >= 50 && s.confidence < 70)).length;
+      document.getElementById('statNeutral').textContent = signals.filter(s => s.direction === 'NEUTRAL').length;
+    }
+
+    function rowTitle(s) {
+      const parts = [`Raw score: ${s.rawConfidence ?? s.confidence}%`];
+      if (s.notes?.length) parts.push(...s.notes);
+      if (s.components) {
+        const c = s.components;
+        parts.push(`Trend ${c.dailyTrend} · Mom ${c.momentum4h} · CVD ${c.cvdDivergence} · OI ${c.oiChange} · Fund ${c.funding}`);
+      }
+      return parts.join(' · ');
+    }
+
+    function getFiltered() {
+      let list = signals;
+      if (filter === 'long') list = list.filter(s => s.direction === 'LONG');
+      else if (filter === 'short') list = list.filter(s => s.direction === 'SHORT');
+      else if (filter === 'actionable')
+        list = list.filter(s => s.direction !== 'NEUTRAL' && !s.weakSignal && s.confidence >= 70);
+      else if (filter === 'weak')
+        list = list.filter(s => s.weakSignal || (s.direction !== 'NEUTRAL' && s.confidence >= 50 && s.confidence < 70));
+      if (search.trim()) {
+        const q = search.trim().toUpperCase();
+        list = list.filter(s => s.symbol.includes(q));
+      }
+      return list.sort((a, b) => b.confidence - a.confidence);
+    }
+
+    function openCoin(symbol) {
+      window.open('/coin.html?pair=' + encodeURIComponent(symbol), '_blank', 'noopener');
+    }
+
+    function renderTable() {
+      const filtered = getFiltered();
+      const el = document.getElementById('tableContent');
+      if (filtered.length === 0) {
+        el.className = 'empty';
+        el.innerHTML = backendOnline && signals.length === 0
+          ? '<p>No signals match this filter.</p><p style="font-size:0.75rem;margin-top:0.5rem">First scan may take a few minutes — click Scan or wait for the cron.</p>'
+          : filter === 'actionable' && signals.length > 0
+            ? '<p>No actionable setups (≥70% confidence) right now.</p><p style="font-size:0.75rem;margin-top:0.5rem">Try the <strong>weak</strong> filter for 50–69% watchlist setups, or wait for the next scan.</p>'
+            : '<p>No signals match this filter.</p>';
+        return;
+      }
+      el.className = 'table-scroll';
+      el.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Pair</th><th>Signal</th><th>Conf</th><th>Trend</th>
+              <th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>R:R</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(s => `
+              <tr class="clickable" data-pair="${s.symbol.replace(/"/g, '&quot;')}" title="Open chart & analysis (new tab)">
+                <td><span class="pair-link">${formatSymbol(s.symbol)}</span></td>
+                <td>
+                  <span class="direction ${s.direction}">${s.direction}</span>
+                  ${s.weakSignal ? '<span class="weak">weak</span>' : ''}
+                </td>
+                <td>${s.confidence}%</td>
+                <td class="muted" style="text-transform:capitalize">${s.dailyTrend}</td>
+                <td class="mono">${formatPrice(s.entryPrice)}</td>
+                <td class="mono sl">${formatPrice(s.stopLoss)}</td>
+                <td class="mono tp1">${formatPrice(s.takeProfit1)}</td>
+                <td class="mono tp2">${formatPrice(s.takeProfit2)}</td>
+                <td class="muted">1:${s.riskReward1} / 1:${s.riskReward2}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    async function load() {
+      showError(null);
+      try {
+        const [healthRes, dataRes, settingsRes] = await Promise.all([
+          fetch('/health'),
+          fetch('/signals/top100'),
+          fetch('/settings/scan'),
+        ]);
+        if (!healthRes.ok || !dataRes.ok) throw new Error('API request failed');
+        const health = await healthRes.json();
+        const data = await dataRes.json();
+        if (settingsRes.ok) {
+          const settings = await settingsRes.json();
+          scanPairCount = settings.count ?? scanPairCount;
+          const sel = document.getElementById('scanCountSelect');
+          if (sel && [...sel.options].some(o => o.value === String(scanPairCount))) {
+            sel.value = String(scanPairCount);
+          }
+        } else if (health.scanPairCount) {
+          scanPairCount = health.scanPairCount;
+        }
+        updateScanBtnLabel();
+        setOnline(health.status === 'ok');
+        signals = data.signals || [];
+        const lastRun = data.lastRun || health.lastSignalRun;
+        const lastRunEl = document.getElementById('lastRun');
+        if (lastRun) {
+          lastRunEl.hidden = false;
+          lastRunEl.textContent = 'Last scan: ' + new Date(lastRun).toLocaleString();
+        }
+        updateStats();
+        renderTable();
+        const stRes = await fetch('/signals/scan-status');
+        if (stRes.ok) {
+          const st = await stRes.json();
+          if (st.running || st.queued) {
+            refreshing = true;
+            document.getElementById('scanBtn').disabled = true;
+            document.getElementById('scanBtn').textContent = 'Scanning…';
+            await pollScanStatus();
+            startPolling();
+          }
+        }
+      } catch (e) {
+        setOnline(false);
+        showError(e instanceof Error ? e.message : 'Cannot reach signals API');
+        renderTable();
+      }
+    }
+
+    async function handleRefresh() {
+      if (refreshing) return;
+      refreshing = true;
+      document.getElementById('scanBtn').disabled = true;
+      document.getElementById('scanBtn').textContent = 'Scanning…';
+      showError(null);
+      showScanStatus('Starting scan…', 2);
+      try {
+        const res = await fetch(`/signals/refresh?count=${scanPairCount}`);
+        if (!res.ok) throw new Error('Refresh failed');
+        const body = await res.json();
+        if (body.message) showScanStatus(body.message, 5);
+        await pollScanStatus();
+        startPolling();
+      } catch (e) {
+        showError(e instanceof Error ? e.message : 'Refresh failed');
+        hideScanStatus();
+        refreshing = false;
+        document.getElementById('scanBtn').textContent = `Scan ${scanPairCount}`;
+        document.getElementById('scanBtn').disabled = !backendOnline;
+      }
+    }
+
+    document.getElementById('filters').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-filter]');
+      if (!btn) return;
+      filter = btn.dataset.filter;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderTable();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      search = e.target.value;
+      renderTable();
+    });
+
+    document.getElementById('scanCountSelect').addEventListener('change', async (e) => {
+      scanPairCount = parseInt(e.target.value, 10);
+      localStorage.setItem('scanPairCount', String(scanPairCount));
+      updateScanBtnLabel();
+      try {
+        await fetch(`/settings/scan?count=${scanPairCount}`, { method: 'PATCH' });
+      } catch { /* ignore */ }
+    });
+
+    const savedCount = localStorage.getItem('scanPairCount');
+    if (savedCount) {
+      scanPairCount = parseInt(savedCount, 10);
+      const sel = document.getElementById('scanCountSelect');
+      if (sel && [...sel.options].some(o => o.value === savedCount)) sel.value = savedCount;
+    }
+    updateScanBtnLabel();
+
+    document.getElementById('tableContent').addEventListener('click', (e) => {
+      const row = e.target.closest('tr[data-pair]');
+      if (row) openCoin(row.dataset.pair);
+    });
+
+    document.getElementById('scanBtn').addEventListener('click', () => void handleRefresh());
+
+    void load();
+    setInterval(() => void load(), 60_000);
+  </script>
+</body>
+</html>

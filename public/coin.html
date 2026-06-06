@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coin Analysis — Meridian</title>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #09090b; color: #fafafa; line-height: 1.6;
+    }
+    .container { max-width: 72rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    a { color: #a1a1aa; text-decoration: none; }
+    a:hover { color: #fafafa; }
+    header { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    h1 { margin: 0; font-size: 1.5rem; font-weight: 600; }
+    .sub { margin: 0.25rem 0 0; font-size: 0.875rem; color: #71717a; }
+    .badge {
+      display: inline-flex; align-items: center; border-radius: 9999px; border: 1px solid;
+      padding: 0.25rem 0.75rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+    }
+    .badge.WAIT { border-color: #52525b; background: #27272a; color: #a1a1aa; }
+    .badge.WATCH { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.12); color: #fbbf24; }
+    .badge.CONSIDER { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.12); color: #34d399; }
+    .direction { border-radius: 0.25rem; border: 1px solid; padding: 0.125rem 0.5rem; font-size: 0.75rem; font-weight: 600; }
+    .direction.LONG { color: #34d399; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.1); }
+    .direction.SHORT { color: #fb7185; border-color: rgba(244,63,94,0.3); background: rgba(244,63,94,0.1); }
+    .direction.NEUTRAL { color: #a1a1aa; border-color: #52525b; background: #27272a; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .tab {
+      border: 1px solid #27272a; background: transparent; color: #71717a;
+      border-radius: 0.5rem; padding: 0.375rem 0.875rem; font-size: 0.8125rem; cursor: pointer;
+    }
+    .tab.active { border-color: #52525b; background: #27272a; color: #fafafa; }
+    .chart-box {
+      border-radius: 0.75rem; border: 1px solid #27272a; background: #0c0c0e;
+      overflow: hidden; margin-bottom: 1.25rem;
+    }
+    .chart-box:fullscreen {
+      margin: 0; border: none; border-radius: 0;
+      display: flex; flex-direction: column;
+      width: 100%; height: 100%; background: #0c0c0e;
+    }
+    .chart-box:fullscreen .live-bar,
+    .chart-box:fullscreen .legend { flex-shrink: 0; }
+    .chart-box:fullscreen #toolsGrid { flex-shrink: 0; }
+    .chart-box:fullscreen #chart {
+      flex: 1; height: auto !important; min-height: 0;
+    }
+    #chart { width: 100%; height: 420px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 1rem; padding: 0.5rem 1rem; font-size: 0.75rem; color: #71717a; border-top: 1px solid #27272a; }
+    .legend span::before { content: ''; display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 1px; }
+    .leg-ema50::before { background: #fbbf24; }
+    .leg-ema20::before { background: #a78bfa; }
+    .leg-ema200::before { background: #818cf8; }
+    .leg-bb::before { background: #64748b; }
+    .leg-sr::before { background: #f472b6; }
+    .leg-entry::before { background: #34d399; }
+    .leg-sl::before { background: #fb7185; }
+    .leg-tp::before { background: #38bdf8; }
+    .live-bar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 0.75rem; padding: 0.5rem 1rem; border-bottom: 1px solid #27272a; font-size: 0.8125rem;
+    }
+    .live-bar-right {
+      display: flex; align-items: center; gap: 0.625rem; flex-wrap: wrap; margin-left: auto;
+    }
+    .chart-fs-btn {
+      border: 1px solid #3f3f46; background: #18181b; color: #a1a1aa; border-radius: 0.375rem;
+      padding: 0.375rem 0.75rem; font-size: 0.75rem; cursor: pointer; white-space: nowrap;
+    }
+    .chart-fs-btn:hover { color: #fafafa; border-color: #52525b; }
+    .live-status { display: inline-flex; align-items: center; gap: 0.5rem; color: #71717a; }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 9999px; background: #52525b;
+    }
+    .live-dot.on { background: #34d399; box-shadow: 0 0 8px rgba(52,211,153,0.6); animation: pulse 1.5s ease infinite; }
+    .live-dot.poll { background: #fbbf24; animation: pulse 1.5s ease infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+    .live-price { font-family: ui-monospace, monospace; font-size: 1rem; color: #fafafa; font-weight: 600; }
+    .grid { display: grid; gap: 1rem; }
+    @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card {
+      border-radius: 0.75rem; border: 1px solid #27272a; background: rgba(24,24,27,0.6); padding: 1.25rem;
+    }
+    .card h2 { margin: 0 0 0.75rem; font-size: 0.9375rem; font-weight: 600; color: #e4e4e7; }
+    .card p { margin: 0 0 0.75rem; font-size: 0.9375rem; color: #d4d4d8; }
+    .card p:last-child { margin-bottom: 0; }
+    .card-wide { grid-column: 1 / -1; }
+    .levels { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    @media (min-width: 640px) { .levels { grid-template-columns: repeat(4, 1fr); } }
+    .level { border-radius: 0.5rem; background: #18181b; padding: 0.75rem; }
+    .level-label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; }
+    .level-val { font-family: ui-monospace, monospace; font-size: 0.9375rem; margin-top: 0.25rem; }
+    .level.entry .level-val { color: #34d399; }
+    .level.sl .level-val { color: #fb7185; }
+    .level.tp .level-val { color: #38bdf8; }
+    .tool { margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #27272a; }
+    .tool:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .tool strong { display: block; font-size: 0.75rem; color: #71717a; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .error { border-radius: 0.75rem; border: 1px solid rgba(245,158,11,0.3); background: rgba(245,158,11,0.1); padding: 1rem; color: #fde68a; }
+    .loading { text-align: center; padding: 4rem 1rem; color: #71717a; }
+    .analysis-text strong { color: #fafafa; }
+    .tools-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
+    @media (min-width: 640px) { .tools-grid { grid-template-columns: repeat(4, 1fr); } }
+    .tool-chip { border-radius: 0.5rem; background: #18181b; padding: 0.625rem 0.75rem; font-size: 0.8125rem; }
+    .tool-chip .lbl { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; }
+    .tool-chip .val { font-family: ui-monospace, monospace; margin-top: 0.125rem; color: #e4e4e7; }
+    footer { margin-top: 2rem; text-align: center; font-size: 0.75rem; color: #52525b; }
+
+    .mtf-panel {
+      border-radius: 0.75rem; border: 1px solid #27272a; background: rgba(24,24,27,0.85);
+      margin-bottom: 1.25rem; overflow: hidden;
+    }
+    .mtf-header {
+      display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+      gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid #27272a;
+    }
+    .mtf-header h2 { margin: 0 0 0.25rem; font-size: 0.9375rem; font-weight: 600; color: #e4e4e7; }
+    .mtf-header .sub-h { margin: 0; font-size: 0.8125rem; color: #71717a; }
+    .mtf-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .mtf-refresh {
+      border: 1px solid #3f3f46; background: #18181b; color: #a1a1aa; border-radius: 0.375rem;
+      padding: 0.375rem 0.75rem; font-size: 0.75rem; cursor: pointer;
+    }
+    .mtf-refresh:hover { color: #fafafa; border-color: #52525b; }
+    .horizon-group { display: inline-flex; border: 1px solid #27272a; border-radius: 0.5rem; overflow: hidden; }
+    .horizon-btn {
+      border: none; background: transparent; color: #71717a; cursor: pointer;
+      padding: 0.375rem 0.625rem; font-size: 0.75rem; border-right: 1px solid #27272a;
+    }
+    .horizon-btn:last-child { border-right: none; }
+    .horizon-btn:hover { color: #fafafa; background: #18181b; }
+    .horizon-btn.active { background: #6d28d9; color: #fff; }
+    .action-banner {
+      padding: 1rem 1.25rem; border-bottom: 1px solid #27272a;
+      display: grid; gap: 0.75rem;
+    }
+    @media (min-width: 768px) { .action-banner { grid-template-columns: auto 1fr; align-items: start; gap: 1.25rem; } }
+    .action-verdict {
+      display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.5rem;
+      padding: 0.5rem 0.875rem; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .action-verdict.TRADE { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.35); }
+    .action-verdict.WATCH { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.35); }
+    .action-verdict.WAIT { background: rgba(113,113,122,0.15); color: #a1a1aa; border: 1px solid #52525b; }
+    .action-verdict.AVOID { background: rgba(244,63,94,0.12); color: #fb7185; border: 1px solid rgba(244,63,94,0.35); }
+    .action-summary { margin: 0; font-size: 0.9375rem; color: #d4d4d8; line-height: 1.55; }
+    .action-meta {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.625rem;
+    }
+    .action-pill {
+      font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.04em;
+      border-radius: 9999px; border: 1px solid #3f3f46; padding: 0.2rem 0.55rem; color: #a1a1aa;
+    }
+    .action-steps, .action-warns { padding: 0 1.25rem 1rem; font-size: 0.8125rem; }
+    .action-steps h3, .action-warns h3 {
+      margin: 0 0 0.5rem; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: #71717a;
+    }
+    .action-steps ol { margin: 0; padding-left: 1.25rem; color: #d4d4d8; }
+    .action-steps li { margin-bottom: 0.35rem; }
+    .action-warns ul { margin: 0; padding-left: 1.125rem; color: #fbbf24; }
+    .mtf-table-wrap { overflow-x: auto; }
+    .mtf-table {
+      width: 100%; border-collapse: collapse; font-size: 0.8125rem;
+    }
+    .mtf-table th {
+      text-align: left; padding: 0.625rem 1rem; font-size: 0.625rem; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #71717a; border-top: 1px solid #27272a; background: #0c0c0e;
+    }
+    .mtf-table td { padding: 0.625rem 1rem; border-top: 1px solid #1f1f23; color: #d4d4d8; }
+    .mtf-row { cursor: pointer; transition: background 0.15s; }
+    .mtf-row:hover { background: rgba(39,39,42,0.6); }
+    .mtf-row.active { background: rgba(63,63,70,0.35); }
+    .mtf-row.active td:first-child { box-shadow: inset 3px 0 0 #a78bfa; }
+    .mtf-conf { font-family: ui-monospace, monospace; font-weight: 600; }
+    .mtf-conf.high { color: #34d399; }
+    .mtf-conf.mid { color: #fbbf24; }
+    .mtf-conf.low { color: #71717a; }
+    .mtf-verdict {
+      font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 0.15rem 0.45rem; border-radius: 0.25rem; border: 1px solid;
+    }
+    .mtf-verdict.CONSIDER { color: #34d399; border-color: rgba(16,185,129,0.35); background: rgba(16,185,129,0.08); }
+    .mtf-verdict.WATCH { color: #fbbf24; border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.08); }
+    .mtf-verdict.WAIT { color: #71717a; border-color: #3f3f46; background: #18181b; }
+    .mtf-loading { padding: 1.25rem; text-align: center; color: #71717a; font-size: 0.8125rem; }
+    .align-bar {
+      display: flex; gap: 0.375rem; padding: 0.625rem 1.25rem 0.75rem; border-top: 1px solid #27272a;
+      font-size: 0.75rem; color: #71717a; flex-wrap: wrap;
+    }
+    .align-dot {
+      display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem; background: #18181b; border: 1px solid #27272a;
+    }
+    .align-dot .n { font-family: ui-monospace, monospace; font-weight: 600; }
+    .align-dot.long .n { color: #34d399; }
+    .align-dot.short .n { color: #fb7185; }
+    .align-dot.neutral .n { color: #71717a; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <p style="margin:0 0 0.5rem"><a href="/">← Back to dashboard</a></p>
+        <h1 id="coinTitle">Loading…</h1>
+        <p class="sub" id="coinSub">CoinDCX USDT futures</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+        <span id="dirBadge" class="direction NEUTRAL">—</span>
+        <span id="verdictBadge" class="badge WAIT">—</span>
+        <span id="confText" style="font-size:0.875rem;color:#71717a">—</span>
+      </div>
+    </header>
+
+    <div id="loading" class="loading">Loading chart and analysis…</div>
+    <div id="error" class="error" hidden></div>
+
+    <div id="content" hidden>
+      <div class="mtf-panel" id="mtfPanel">
+        <div class="mtf-header">
+          <div>
+            <h2>All timeframes — what to do</h2>
+            <p class="sub-h">Compare every chart at once. Hold times are style guides — not price forecasts.</p>
+          </div>
+          <div class="mtf-actions">
+            <div class="horizon-group" id="horizonGroup" title="How long do you plan to hold?">
+              <button type="button" class="horizon-btn active" data-horizon="auto">Auto</button>
+              <button type="button" class="horizon-btn" data-horizon="scalp">Scalp</button>
+              <button type="button" class="horizon-btn" data-horizon="day">Day ≤24h</button>
+              <button type="button" class="horizon-btn" data-horizon="swing">Swing</button>
+            </div>
+            <button type="button" class="mtf-refresh" id="mtfRefresh">Refresh all</button>
+          </div>
+        </div>
+        <div id="mtfLoading" class="mtf-loading">Scanning 5 timeframes…</div>
+        <div id="mtfBody" hidden>
+          <div class="action-banner" id="actionBanner"></div>
+          <div class="action-steps" id="actionSteps" hidden></div>
+          <div class="action-warns" id="actionWarns" hidden></div>
+          <div class="align-bar" id="alignBar"></div>
+          <div class="mtf-table-wrap">
+            <table class="mtf-table">
+              <thead>
+                <tr>
+                  <th>Timeframe</th>
+                  <th>Role</th>
+                  <th>Signal</th>
+                  <th>Confidence</th>
+                  <th>Trend</th>
+                  <th>Trade style</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="mtfTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs" id="intervalTabs">
+        <button type="button" class="tab" data-interval="5m">5 min</button>
+        <button type="button" class="tab" data-interval="15m">15 min</button>
+        <button type="button" class="tab" data-interval="1h">1 hour</button>
+        <button type="button" class="tab active" data-interval="4h">4 hour</button>
+        <button type="button" class="tab" data-interval="1d">Daily</button>
+      </div>
+
+      <div class="chart-box" id="chartBox">
+        <div class="live-bar">
+          <div class="live-status">
+            <span id="liveDot" class="live-dot"></span>
+            <span id="liveLabel">Connecting…</span>
+          </div>
+          <div class="live-bar-right">
+            <span id="livePrice" class="live-price">—</span>
+            <button type="button" class="chart-fs-btn" id="fullscreenBtn" aria-pressed="false" title="Full screen (F)">Full screen</button>
+          </div>
+        </div>
+        <div id="chart"></div>
+        <div id="toolsGrid" class="tools-grid" hidden></div>
+        <div class="legend">
+          <span class="leg-ema20">EMA 20</span>
+          <span class="leg-ema50">EMA 50</span>
+          <span class="leg-ema200">EMA 200</span>
+          <span class="leg-bb">Bollinger</span>
+          <span class="leg-sr">Support / Resistance</span>
+          <span class="leg-entry">Entry</span>
+          <span class="leg-sl">Stop loss (SL)</span>
+          <span class="leg-tp">Take profit (TP1 / TP2)</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card card-wide">
+          <h2 id="headline">Summary</h2>
+          <p id="summary" class="analysis-text"></p>
+        </div>
+
+        <div class="card">
+          <h2>When to enter</h2>
+          <p id="whenToEnter" class="analysis-text"></p>
+        </div>
+
+        <div class="card">
+          <h2>What the chart is saying</h2>
+          <p id="whatChart" class="analysis-text"></p>
+        </div>
+
+        <div class="card card-wide">
+          <h2>Key price levels</h2>
+          <div class="levels" id="levels"></div>
+        </div>
+
+        <div class="card">
+          <h2>Risks</h2>
+          <p id="risks"></p>
+        </div>
+
+        <div class="card">
+          <h2>Bottom line</h2>
+          <p id="bottomLine" class="analysis-text"></p>
+        </div>
+
+        <div class="card card-wide">
+          <h2 id="toolsTitle">Indicator tools</h2>
+          <div id="tools"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Research only — not financial advice.</footer>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const pair = params.get('pair') || 'BTC';
+    let interval = '4h';
+    let normalizedPair = '';
+    let chart = null;
+    let candleSeries = null;
+    let volumeSeries = null;
+    let ema20Series = null;
+    let ema50Series = null;
+    let ema200Series = null;
+    let bbUpperSeries = null;
+    let bbLowerSeries = null;
+    let priceLines = [];
+    let analysisData = null;
+    let mtfData = null;
+    let horizon = localStorage.getItem('meridian_horizon') || 'auto';
+    let candlesCache = [];
+    let lastCandle = null;
+    let liveEventSource = null;
+    let pollTimer = null;
+    let liveMode = 'off';
+
+    function setLiveStatus(mode, label) {
+      liveMode = mode;
+      const dot = document.getElementById('liveDot');
+      dot.className = 'live-dot' + (mode === 'ws' ? ' on' : mode === 'poll' ? ' poll' : '');
+      document.getElementById('liveLabel').textContent = label;
+    }
+
+    function setLivePrice(price) {
+      if (!price || !Number.isFinite(price)) return;
+      document.getElementById('livePrice').textContent = formatPrice(price);
+    }
+
+    function updateFormingCandle(price) {
+      if (!lastCandle || !candleSeries || !price) return;
+      const updated = {
+        time: lastCandle.time,
+        open: lastCandle.open,
+        high: Math.max(lastCandle.high, price),
+        low: Math.min(lastCandle.low, price),
+        close: price,
+      };
+      lastCandle = { ...lastCandle, ...updated };
+      candleSeries.update(updated);
+      const idx = candlesCache.findIndex(c => c.time === updated.time);
+      if (idx >= 0) candlesCache[idx] = { ...candlesCache[idx], ...updated };
+    }
+
+    function applyCandleBar(bar) {
+      if (!bar || !candleSeries) return;
+      const time = Math.floor(Number(bar.open_time ?? bar.time));
+      if (!time) return;
+      const c = {
+        time,
+        open: parseFloat(bar.open),
+        high: parseFloat(bar.high),
+        low: parseFloat(bar.low),
+        close: parseFloat(bar.close),
+        volume: parseFloat(bar.volume ?? 0),
+      };
+      candleSeries.update(c);
+      volumeSeries.update({
+        time: c.time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(52,211,153,0.35)' : 'rgba(251,113,133,0.35)',
+      });
+      const idx = candlesCache.findIndex(x => x.time === c.time);
+      if (idx >= 0) candlesCache[idx] = c;
+      else candlesCache.push(c);
+      if (!lastCandle || c.time >= lastCandle.time) lastCandle = c;
+      setLivePrice(c.close);
+    }
+
+    function leaveLiveChannels() { /* SSE uses single stream per page */ }
+
+    function joinLiveChannels() {
+      connectLiveStream();
+    }
+
+    function stopLive() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (liveEventSource) {
+        liveEventSource.close();
+        liveEventSource = null;
+      }
+      setLiveStatus('off', 'Disconnected');
+    }
+
+    function startPollFallback() {
+      if (pollTimer) return;
+      setLiveStatus('poll', 'Live (polling every 3s)');
+      pollTimer = setInterval(async () => {
+        try {
+          const enc = encodeURIComponent(normalizedPair || pair);
+          const res = await fetch(`/market/${enc}/tick`);
+          if (!res.ok) return;
+          const tick = await res.json();
+          if (tick.price) {
+            setLivePrice(tick.price);
+            updateFormingCandle(tick.price);
+          }
+        } catch { /* ignore */ }
+      }, 3000);
+    }
+
+    function connectLiveStream() {
+      if (!normalizedPair) {
+        startPollFallback();
+        return;
+      }
+      stopLive();
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      setLiveStatus('off', 'Connecting…');
+
+      const enc = encodeURIComponent(normalizedPair);
+      const url = `/market/${enc}/live?interval=${interval}`;
+      liveEventSource = new EventSource(url);
+
+      liveEventSource.addEventListener('status', (e) => {
+        try {
+          const st = JSON.parse(e.data);
+          if (st.connected) {
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            setLiveStatus('ws', 'Live · CoinDCX stream');
+          }
+        } catch { /* ignore */ }
+      });
+
+      liveEventSource.addEventListener('price', (e) => {
+        try {
+          const { price } = JSON.parse(e.data);
+          if (price) {
+            setLivePrice(price);
+            updateFormingCandle(price);
+          }
+        } catch { /* ignore */ }
+      });
+
+      liveEventSource.addEventListener('candle', (e) => {
+        try {
+          const { bars } = JSON.parse(e.data);
+          for (const bar of bars ?? []) applyCandleBar(bar);
+        } catch { /* ignore */ }
+      });
+
+      liveEventSource.onopen = () => {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        setLiveStatus('ws', 'Live · CoinDCX stream');
+      };
+
+      liveEventSource.onerror = () => {
+        if (liveEventSource?.readyState === EventSource.CLOSED) {
+          setLiveStatus('off', 'Stream unavailable — polling');
+          startPollFallback();
+        }
+      };
+    }
+
+    window.addEventListener('beforeunload', stopLive);
+
+    function priceScaleOptions(price) {
+      const p = Number(price) || 1;
+      if (p >= 1000) return { precision: 2, minMove: 0.01 };
+      if (p >= 10) return { precision: 3, minMove: 0.001 };
+      if (p >= 1) return { precision: 4, minMove: 0.0001 };
+      if (p >= 0.1) return { precision: 5, minMove: 0.00001 };
+      return { precision: 6, minMove: 0.000001 };
+    }
+
+    function formatPrice(n) {
+      if (n == null || !Number.isFinite(Number(n))) return '—';
+      const x = Number(n);
+      if (x >= 1000) return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (x >= 10) return x.toFixed(3);
+      if (x >= 1) return x.toFixed(4);
+      if (x >= 0.1) return x.toFixed(5);
+      return x.toFixed(6);
+    }
+
+    function applyChartPriceFormat(referencePrice) {
+      if (!chart || !candleSeries) return;
+      const { precision, minMove } = priceScaleOptions(referencePrice);
+      const priceFormat = { type: 'price', precision, minMove };
+      const seriesOpts = { priceFormat };
+      candleSeries.applyOptions(seriesOpts);
+      ema20Series?.applyOptions(seriesOpts);
+      ema50Series?.applyOptions(seriesOpts);
+      ema200Series?.applyOptions(seriesOpts);
+      bbUpperSeries?.applyOptions(seriesOpts);
+      bbLowerSeries?.applyOptions(seriesOpts);
+      chart.applyOptions({
+        localization: { priceFormatter: (p) => formatPrice(p) },
+      });
+    }
+
+    function mdToHtml(text) {
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function showError(msg) {
+      document.getElementById('loading').hidden = true;
+      document.getElementById('content').hidden = true;
+      const el = document.getElementById('error');
+      el.hidden = false;
+      el.textContent = msg;
+    }
+
+    function resizeChart() {
+      if (!chart) return;
+      const el = document.getElementById('chart');
+      const h = el.clientHeight > 0 ? el.clientHeight : 420;
+      chart.applyOptions({ width: el.clientWidth, height: h });
+    }
+
+    function updateFullscreenButton() {
+      const box = document.getElementById('chartBox');
+      const btn = document.getElementById('fullscreenBtn');
+      if (!btn || !box) return;
+      const isFs = document.fullscreenElement === box;
+      btn.textContent = isFs ? 'Exit full screen' : 'Full screen';
+      btn.setAttribute('aria-pressed', String(isFs));
+      btn.title = isFs ? 'Exit full screen (Esc or F)' : 'Full screen (F)';
+    }
+
+    async function toggleChartFullscreen() {
+      const box = document.getElementById('chartBox');
+      if (!box) return;
+      try {
+        if (document.fullscreenElement === box) {
+          await document.exitFullscreen();
+        } else if (!document.fullscreenElement) {
+          await box.requestFullscreen();
+        } else {
+          await document.exitFullscreen();
+          await box.requestFullscreen();
+        }
+      } catch {
+        /* browser blocked or unsupported */
+      }
+    }
+
+    function initChart() {
+      const el = document.getElementById('chart');
+      chart = LightweightCharts.createChart(el, {
+        layout: { background: { color: '#0c0c0e' }, textColor: '#71717a' },
+        grid: { vertLines: { color: '#1a1a1f' }, horzLines: { color: '#1a1a1f' } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        rightPriceScale: { borderColor: '#27272a' },
+        timeScale: { borderColor: '#27272a', timeVisible: true },
+      });
+      candleSeries = chart.addCandlestickSeries({
+        upColor: '#34d399', downColor: '#fb7185',
+        borderUpColor: '#34d399', borderDownColor: '#fb7185',
+        wickUpColor: '#34d399', wickDownColor: '#fb7185',
+      });
+      volumeSeries = chart.addHistogramSeries({
+        color: '#3f3f46', priceFormat: { type: 'volume' },
+        priceScaleId: 'vol',
+      });
+      chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
+      ema20Series = chart.addLineSeries({ color: '#a78bfa', lineWidth: 1, title: 'EMA20' });
+      ema50Series = chart.addLineSeries({ color: '#fbbf24', lineWidth: 2, title: 'EMA50' });
+      ema200Series = chart.addLineSeries({ color: '#818cf8', lineWidth: 2, title: 'EMA200' });
+      bbUpperSeries = chart.addLineSeries({ color: 'rgba(100,116,139,0.7)', lineWidth: 1, lineStyle: 2, title: 'BB↑' });
+      bbLowerSeries = chart.addLineSeries({ color: 'rgba(100,116,139,0.7)', lineWidth: 1, lineStyle: 2, title: 'BB↓' });
+      new ResizeObserver(() => resizeChart()).observe(el);
+    }
+
+    function clearPriceLines() {
+      priceLines.forEach(pl => { try { candleSeries.removePriceLine(pl); } catch {} });
+      priceLines = [];
+    }
+
+    function addLevel(price, color, title, opts = {}) {
+      if (price == null || !candleSeries || !Number.isFinite(Number(price))) return;
+      const p = Number(price);
+      const label = `${title} ${formatPrice(p)}`;
+      const line = candleSeries.createPriceLine({
+        price: p,
+        color,
+        lineWidth: opts.lineWidth ?? 2,
+        lineStyle: opts.solid
+          ? LightweightCharts.LineStyle.Solid
+          : LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: label,
+      });
+      priceLines.push(line);
+    }
+
+    function drawTradeLevels() {
+      clearPriceLines();
+      const s = analysisData?.signal;
+      if (!s || !candleSeries) return;
+
+      addLevel(s.entryPrice, '#34d399', s.entryKind === 'limit' ? 'Entry (limit)' : 'Entry', { lineWidth: 2, solid: false });
+      if (s.entryKind === 'limit' && s.marketPrice && Math.abs(s.marketPrice - s.entryPrice) / s.entryPrice > 0.001) {
+        addLevel(s.marketPrice, 'rgba(161,161,170,0.7)', 'Now', { lineWidth: 1, solid: false });
+      }
+      addLevel(s.stopLoss, '#fb7185', 'SL', { lineWidth: 2, solid: true });
+      addLevel(s.takeProfit1, '#38bdf8', 'TP1', { lineWidth: 2, solid: true });
+      addLevel(s.takeProfit2, '#60a5fa', 'TP2', { lineWidth: 2, solid: false });
+
+      const tools = analysisData?.tools;
+      if (tools?.support) {
+        addLevel(tools.support, 'rgba(244,114,182,0.85)', 'Support', { lineWidth: 1, solid: false });
+      }
+      if (tools?.resistance) {
+        addLevel(tools.resistance, 'rgba(244,114,182,0.85)', 'Resist', { lineWidth: 1, solid: false });
+      }
+    }
+
+    async function loadCandles() {
+      const enc = encodeURIComponent(pair);
+      const res = await fetch(`/market/${enc}/candles?interval=${interval}&limit=300`);
+      if (!res.ok) throw new Error('Could not load chart data');
+      const data = await res.json();
+      normalizedPair = data.pair;
+
+      candlesCache = data.candles;
+      lastCandle = data.candles.length ? { ...data.candles[data.candles.length - 1] } : null;
+
+      candleSeries.setData(data.candles);
+      volumeSeries.setData(data.candles.map(c => ({
+        time: c.time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(52,211,153,0.35)' : 'rgba(251,113,133,0.35)',
+      })));
+      ema20Series.setData(data.ema20 ?? []);
+      ema50Series.setData(data.ema50 ?? []);
+      ema200Series.setData(data.ema200 ?? []);
+      if (data.bollinger) {
+        bbUpperSeries.setData(data.bollinger.upper ?? []);
+        bbLowerSeries.setData(data.bollinger.lower ?? []);
+      }
+      chart.timeScale().fitContent();
+      const refPrice = lastCandle?.close ?? analysisData?.signal?.entryPrice ?? 1;
+      applyChartPriceFormat(refPrice);
+      if (lastCandle) setLivePrice(lastCandle.close);
+
+      drawTradeLevels();
+
+      connectLiveStream();
+    }
+
+    function renderToolsGrid(tools) {
+      const grid = document.getElementById('toolsGrid');
+      if (!tools) { grid.hidden = true; return; }
+      grid.hidden = false;
+      grid.innerHTML = `
+        <div class="tool-chip"><div class="lbl">RSI (14)</div><div class="val">${tools.rsi}</div></div>
+        <div class="tool-chip"><div class="lbl">MACD hist</div><div class="val">${tools.macdHistogram}</div></div>
+        <div class="tool-chip"><div class="lbl">ADX</div><div class="val">${tools.adx}</div></div>
+        <div class="tool-chip"><div class="lbl">Volume</div><div class="val">${tools.volumeRatio}x</div></div>
+        <div class="tool-chip"><div class="lbl">EMA 20</div><div class="val">${formatPrice(tools.ema20)}</div></div>
+        <div class="tool-chip"><div class="lbl">EMA 50</div><div class="val">${formatPrice(tools.ema50)}</div></div>
+        <div class="tool-chip"><div class="lbl">BB position</div><div class="val">${tools.bbPosition}</div></div>
+        <div class="tool-chip"><div class="lbl">Higher TF</div><div class="val">${tools.higherTfTrend ?? '—'}</div></div>`;
+    }
+
+    function confClass(c) {
+      if (c >= 70) return 'high';
+      if (c >= 50) return 'mid';
+      return 'low';
+    }
+
+    function renderMultiTimeframe(data) {
+      mtfData = data;
+      document.getElementById('mtfLoading').hidden = true;
+      document.getElementById('mtfBody').hidden = false;
+
+      const plan = data.actionPlan;
+      const dirLabel = plan.tradeDirection
+        ? `<span class="direction ${plan.tradeDirection}" style="font-size:0.75rem">${plan.tradeDirection}</span>`
+        : '';
+
+      document.getElementById('actionBanner').innerHTML = `
+        <div>
+          <span class="action-verdict ${plan.overallVerdict}">${plan.overallVerdict}</span>
+          ${dirLabel}
+        </div>
+        <div>
+          <p class="action-summary">${plan.summary}</p>
+          <div class="action-meta">
+            <span class="action-pill">Style: ${plan.suggestedStyle}</span>
+            <span class="action-pill">Use: ${plan.suggestedTimeframeLabel} chart</span>
+            <span class="action-pill">Hold: ${plan.holdWindow}</span>
+          </div>
+        </div>`;
+
+      const stepsEl = document.getElementById('actionSteps');
+      if (plan.steps?.length) {
+        stepsEl.hidden = false;
+        stepsEl.innerHTML = `<h3>Step-by-step</h3><ol>${plan.steps.map(s => `<li>${s}</li>`).join('')}</ol>`;
+      } else {
+        stepsEl.hidden = true;
+      }
+
+      const warnsEl = document.getElementById('actionWarns');
+      if (plan.warnings?.length) {
+        warnsEl.hidden = false;
+        warnsEl.innerHTML = `<h3>Warnings</h3><ul>${plan.warnings.map(w => `<li>${w}</li>`).join('')}</ul>`;
+      } else {
+        warnsEl.hidden = true;
+      }
+
+      const al = data.alignment;
+      const dom = al.dominantDirection === 'MIXED' ? 'Mixed' : al.dominantDirection;
+      document.getElementById('alignBar').innerHTML = `
+        <span class="align-dot long"><span class="n">${al.longCount}</span> long</span>
+        <span class="align-dot short"><span class="n">${al.shortCount}</span> short</span>
+        <span class="align-dot neutral"><span class="n">${al.neutralCount}</span> neutral</span>
+        <span style="margin-left:auto">Overall bias: <strong style="color:#e4e4e7">${dom}</strong></span>`;
+
+      const tbody = document.getElementById('mtfTableBody');
+      tbody.innerHTML = data.timeframes.map(tf => {
+        const weak = tf.weakSignal ? ' · weak' : '';
+        const suggested = plan.suggestedTimeframe === tf.interval;
+        return `<tr class="mtf-row${tf.interval === interval ? ' active' : ''}${suggested ? ' suggested' : ''}" data-interval="${tf.interval}" title="Open ${tf.intervalLabel} chart">
+          <td><strong>${tf.interval === '1d' ? 'Daily' : tf.interval}</strong>${suggested ? ' <span style="color:#a78bfa;font-size:0.6875rem">← use this</span>' : ''}</td>
+          <td style="color:#71717a">${tf.role}</td>
+          <td><span class="direction ${tf.direction}">${tf.direction}</span></td>
+          <td><span class="mtf-conf ${confClass(tf.confidence)}">${tf.confidence}%${weak}</span></td>
+          <td>${tf.trend}</td>
+          <td style="color:#71717a;font-size:0.75rem">${tf.holdHint}</td>
+          <td><span class="mtf-verdict ${tf.verdict}">${tf.verdict}</span></td>
+        </tr>`;
+      }).join('');
+
+      highlightMtfRow(interval);
+    }
+
+    function highlightMtfRow(iv) {
+      document.querySelectorAll('.mtf-row').forEach(row => {
+        row.classList.toggle('active', row.dataset.interval === iv);
+      });
+    }
+
+    async function loadMultiTimeframe(autoSwitch = false) {
+      document.getElementById('mtfLoading').hidden = false;
+      document.getElementById('mtfBody').hidden = true;
+      const enc = encodeURIComponent(pair);
+      const res = await fetch(`/market/${enc}/timeframes?horizon=${horizon}`);
+      if (!res.ok) {
+        document.getElementById('mtfLoading').textContent = 'Could not load timeframe summary';
+        return;
+      }
+      const data = await res.json();
+      renderMultiTimeframe(data);
+      // When a hold-horizon preset is chosen, jump the chart to its suggested entry timeframe.
+      if (autoSwitch && horizon !== 'auto') {
+        const suggested = data.actionPlan?.suggestedTimeframe;
+        if (suggested && suggested !== interval) {
+          try { await switchInterval(suggested); } catch { /* ignore */ }
+        }
+      }
+    }
+
+    async function switchInterval(nextInterval) {
+      if (!candleSeries || nextInterval === interval) return;
+      interval = nextInterval;
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.interval === interval);
+      });
+      highlightMtfRow(interval);
+      await loadAnalysis();
+      await loadCandles();
+    }
+
+    async function loadAnalysis() {
+      const enc = encodeURIComponent(pair);
+      const res = await fetch(`/market/${enc}/analysis?interval=${interval}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Analysis failed');
+      }
+      const data = await res.json();
+      renderAnalysis(data);
+      return data;
+    }
+
+    function renderAnalysis(data) {
+      analysisData = data;
+      normalizedPair = data.pair;
+      const { label, signal, analysis, tools, intervalLabel } = data;
+
+      document.title = `${label} — ${intervalLabel} analysis`;
+      document.getElementById('coinTitle').textContent = label;
+      document.getElementById('coinSub').textContent =
+        `${data.pair} · ${intervalLabel} chart · ${signal.trend} on this timeframe`;
+
+      const dir = document.getElementById('dirBadge');
+      dir.textContent = signal.direction;
+      dir.className = 'direction ' + signal.direction;
+
+      const vb = document.getElementById('verdictBadge');
+      vb.textContent = analysis.verdict;
+      vb.className = 'badge ' + analysis.verdict;
+
+      document.getElementById('confText').textContent =
+        `${intervalLabel}: ${signal.confidence}%` + (signal.weakSignal ? ' · weak' : '');
+
+      document.getElementById('headline').textContent = analysis.headline;
+      document.getElementById('summary').innerHTML = '<p>' + mdToHtml(analysis.summary) + '</p>';
+      document.getElementById('whenToEnter').innerHTML = '<p>' + mdToHtml(analysis.whenToEnter) + '</p>';
+      document.getElementById('whatChart').innerHTML = '<p>' + mdToHtml(analysis.whatTheChartShows) + '</p>';
+      document.getElementById('risks').textContent = analysis.risks;
+      document.getElementById('bottomLine').innerHTML = '<p>' + mdToHtml(analysis.bottomLine) + '</p>';
+      document.getElementById('toolsTitle').textContent = `Tools on ${intervalLabel} chart`;
+
+      const lv = analysis.keyLevels;
+      const entrySub = lv.entryKind === 'limit'
+        ? `<div style="font-size:0.6875rem;color:#71717a;margin-top:0.25rem">Now ${formatPrice(lv.marketPrice)} · limit</div>`
+        : `<div style="font-size:0.6875rem;color:#71717a;margin-top:0.25rem">Market</div>`;
+      document.getElementById('levels').innerHTML = `
+        <div class="level entry"><div class="level-label">Entry</div><div class="level-val">${formatPrice(lv.entry)}</div>${entrySub}</div>
+        <div class="level sl"><div class="level-label">Stop loss</div><div class="level-val">${formatPrice(lv.stopLoss)}</div></div>
+        <div class="level tp"><div class="level-label">Target 1</div><div class="level-val">${formatPrice(lv.takeProfit1)}</div></div>
+        <div class="level tp"><div class="level-label">Target 2</div><div class="level-val">${formatPrice(lv.takeProfit2)}</div></div>`;
+
+      const toolHtml = Object.entries(analysis.tools ?? {}).map(([k, v]) =>
+        `<div class="tool"><strong>${k}</strong>${v}</div>`).join('');
+      document.getElementById('tools').innerHTML = toolHtml;
+
+      renderToolsGrid(tools);
+      if (signal.notes?.length) {
+        document.getElementById('risks').textContent += ' ' + signal.notes.join(' · ');
+      }
+      applyChartPriceFormat(signal.entryPrice ?? tools?.ema20 ?? 1);
+      drawTradeLevels();
+    }
+
+    async function loadAll() {
+      try {
+        initChart();
+        await Promise.all([loadMultiTimeframe(), loadAnalysis(), loadCandles()]);
+        document.getElementById('loading').hidden = true;
+        document.getElementById('content').hidden = false;
+      } catch (e) {
+        showError(e instanceof Error ? e.message : 'Failed to load');
+      }
+    }
+
+    document.getElementById('intervalTabs').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-interval]');
+      if (!btn || !candleSeries) return;
+      try {
+        await switchInterval(btn.dataset.interval);
+      } catch { /* ignore */ }
+    });
+
+    document.getElementById('mtfTableBody').addEventListener('click', async (e) => {
+      const row = e.target.closest('[data-interval]');
+      if (!row || !candleSeries) return;
+      try {
+        await switchInterval(row.dataset.interval);
+      } catch { /* ignore */ }
+    });
+
+    document.getElementById('mtfRefresh').addEventListener('click', async () => {
+      try {
+        await loadMultiTimeframe();
+      } catch { /* ignore */ }
+    });
+
+    function syncHorizonButtons() {
+      document.querySelectorAll('.horizon-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.horizon === horizon);
+      });
+    }
+
+    document.getElementById('horizonGroup').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-horizon]');
+      if (!btn) return;
+      horizon = btn.dataset.horizon;
+      localStorage.setItem('meridian_horizon', horizon);
+      syncHorizonButtons();
+      try {
+        await loadMultiTimeframe(true);
+      } catch { /* ignore */ }
+    });
+
+    syncHorizonButtons();
+
+    document.getElementById('fullscreenBtn').addEventListener('click', () => {
+      toggleChartFullscreen();
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+      updateFullscreenButton();
+      requestAnimationFrame(() => resizeChart());
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'f' && e.key !== 'F') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (document.getElementById('content')?.hidden) return;
+      e.preventDefault();
+      toggleChartFullscreen();
+    });
+
+    loadAll();
+  </script>
+</body>
+</html>
