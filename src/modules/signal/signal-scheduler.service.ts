@@ -124,12 +124,15 @@ export class SignalSchedulerService implements OnModuleInit {
       this.statusMessage = `Fetching market data (0/${this.total})…`;
 
       const marketCtx = await this.marketContext.getMarketContext();
-      const pairsData = await this.aggregator.fetchAllPairs(symbols, (i, total, symbol) => {
-        this.progress = i;
-        this.total = total;
-        this.currentSymbol = symbol;
-        this.statusMessage = `Fetching ${this.coindcx.formatLabel(symbol)} (${i}/${total})…`;
-      });
+      const pairsData = await this.aggregator.fetchAllPairs(
+        symbols,
+        (i: number, total: number, symbol: string) => {
+          this.progress = i;
+          this.total = total;
+          this.currentSymbol = symbol;
+          this.statusMessage = `Fetching ${this.coindcx.formatLabel(symbol)} (${i}/${total})…`;
+        },
+      );
 
       this.phase = 'scoring';
       this.total = pairsData.length;
